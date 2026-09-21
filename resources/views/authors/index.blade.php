@@ -60,7 +60,7 @@
                         <td class="py-3 px-4">{{ $author->birth_date->format('M d, Y') }}</td>
                         <td class="py-3 px-4">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                {{ $author->books_count }} {{ Str::plural('book', $author->books_count) }}
+                                {{ $author->books_count }} {{ \Illuminate\Support\Str::plural('book', $author->books_count) }}
                             </span>
                         </td>
                         <td class="py-3 px-4 text-right space-x-2">
