@@ -19,7 +19,13 @@ class BookController extends Controller
 
         $books = Book::with('author')
             ->when($search, function ($query, $search) {
-                $query->where('title', 'like', "%{$search}%");
+                $query->where(function ($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                      ->orWhere('published_date', 'like', "%{$search}%")
+                      ->orWhereHas('author', function ($aq) use ($search) {
+                          $aq->where('name', 'like', "%{$search}%");
+                      });
+                });
             })
             ->latest()
             ->paginate(10)
@@ -45,6 +51,21 @@ class BookController extends Controller
     public function store(StoreBookRequest $request)
     {
         $book = Book::create($request->validated());
+        $book->load('author');
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Book '{$book->title}' created successfully.",
+                'book' => $book,
+                'formatted_published_date' => $book->published_date->format('M d, Y'),
+                'author_name' => $book->author ? $book->author->name : 'Unknown',
+                'author_url' => $book->author ? route('authors.show', $book->author) : '#',
+                'show_url' => route('books.show', $book),
+                'edit_url' => route('books.edit', $book),
+                'destroy_url' => route('books.destroy', $book),
+            ]);
+        }
 
         return redirect()->route('books.index')
             ->with('success', "Book '{$book->title}' created successfully.");
@@ -77,6 +98,14 @@ class BookController extends Controller
     {
         $book->update($request->validated());
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Book '{$book->title}' updated successfully.",
+                'book' => $book,
+            ]);
+        }
+
         return redirect()->route('books.show', $book)
             ->with('success', "Book '{$book->title}' updated successfully.");
     }
@@ -84,10 +113,17 @@ class BookController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Book $book)
+    public function destroy(Request $request, Book $book)
     {
         $title = $book->title;
         $book->delete();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Book '{$title}' deleted successfully.",
+            ]);
+        }
 
         return redirect()->route('books.index')
             ->with('success', "Book '{$title}' deleted successfully.");

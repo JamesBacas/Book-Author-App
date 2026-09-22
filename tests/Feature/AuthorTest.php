@@ -33,6 +33,18 @@ class AuthorTest extends TestCase
         $response->assertDontSee('Jane Austen');
     }
 
+    public function test_can_search_authors_by_birth_date()
+    {
+        Author::factory()->create(['name' => 'George Orwell', 'birth_date' => '1903-06-25']);
+        Author::factory()->create(['name' => 'Jane Austen', 'birth_date' => '1775-12-16']);
+
+        $response = $this->get(route('authors.index', ['search' => '1903']));
+
+        $response->assertStatus(200);
+        $response->assertSee('George Orwell');
+        $response->assertDontSee('Jane Austen');
+    }
+
     public function test_can_create_author()
     {
         $data = [
@@ -44,6 +56,20 @@ class AuthorTest extends TestCase
 
         $response->assertRedirect(route('authors.index'));
         $this->assertDatabaseHas('authors', ['name' => 'Ernest Hemingway']);
+    }
+
+    public function test_can_create_author_via_ajax()
+    {
+        $data = [
+            'name' => 'Virginia Woolf',
+            'birth_date' => '1882-01-25',
+        ];
+
+        $response = $this->postJson(route('authors.store'), $data);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+        $this->assertDatabaseHas('authors', ['name' => 'Virginia Woolf']);
     }
 
     public function test_author_validation_fails_with_invalid_data()

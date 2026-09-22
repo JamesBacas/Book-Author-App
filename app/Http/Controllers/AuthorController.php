@@ -18,7 +18,10 @@ class AuthorController extends Controller
 
         $authors = Author::withCount('books')
             ->when($search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%");
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('birth_date', 'like', "%{$search}%");
+                });
             })
             ->latest()
             ->paginate(10)
@@ -41,6 +44,19 @@ class AuthorController extends Controller
     public function store(StoreAuthorRequest $request)
     {
         $author = Author::create($request->validated());
+        $author->loadCount('books');
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Author '{$author->name}' created successfully.",
+                'author' => $author,
+                'formatted_birth_date' => $author->birth_date->format('M d, Y'),
+                'show_url' => route('authors.show', $author),
+                'edit_url' => route('authors.edit', $author),
+                'destroy_url' => route('authors.destroy', $author),
+            ]);
+        }
 
         return redirect()->route('authors.index')
             ->with('success', "Author '{$author->name}' created successfully.");
@@ -71,6 +87,14 @@ class AuthorController extends Controller
     {
         $author->update($request->validated());
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Author '{$author->name}' updated successfully.",
+                'author' => $author,
+            ]);
+        }
+
         return redirect()->route('authors.show', $author)
             ->with('success', "Author '{$author->name}' updated successfully.");
     }
@@ -78,10 +102,17 @@ class AuthorController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Author $author)
+    public function destroy(Request $request, Author $author)
     {
         $name = $author->name;
         $author->delete();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Author '{$name}' deleted successfully.",
+            ]);
+        }
 
         return redirect()->route('authors.index')
             ->with('success', "Author '{$name}' deleted successfully.");
